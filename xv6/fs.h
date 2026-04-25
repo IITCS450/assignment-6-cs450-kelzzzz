@@ -41,6 +41,8 @@ struct dinode {
 // Block containing inode i
 #define IBLOCK(i, sb)     ((i) / IPB + sb.inodestart)
 
+#define T_SYMLINK 4
+
 // Bitmap bits per block
 #define BPB           (BSIZE*8)
 

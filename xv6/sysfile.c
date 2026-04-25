@@ -306,6 +306,35 @@ sys_open(void)
       end_op();
       return -1;
     }
+    
+    //symlink
+    int depth = 0;
+    char buff[128];
+    int n;
+
+    while(ip->type == T_SYMLINK){
+      ilock(ip);
+      if(depth++ >= 10){
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+
+      n = readi(ip, buff, 0, sizeof(buff)-1);
+      if(n < 1){
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+
+      buff[n] = '\0';
+      iunlockput(ip);
+      ip = namei(buff);
+      if(ip == 0){
+        end_op();
+        return -1;
+      }
+    }
     ilock(ip);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
@@ -313,7 +342,6 @@ sys_open(void)
       return -1;
     }
   }
-
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)
       fileclose(f);
@@ -330,6 +358,34 @@ sys_open(void)
   f->readable = !(omode & O_WRONLY);
   f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
   return fd;
+}
+
+int
+sys_symlink(void)
+{
+  char *target, *linkpath;
+  struct inode *ip;
+  int len;
+  
+  if(argstr(0, &target) < 0 || argstr(1, &linkpath) < 0)
+    return -1;
+
+  begin_op();
+
+  if((ip = create(linkpath, T_SYMLINK, 0, 0)) == 0){
+    end_op();
+    return -1;
+  }
+
+  len = strlen(target)+1;
+  if(writei(ip, target, 0, len) != len){
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+  iunlockput(ip);
+  end_op();
+  return 0;
 }
 
 int
