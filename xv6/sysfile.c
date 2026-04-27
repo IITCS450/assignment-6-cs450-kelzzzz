@@ -307,13 +307,14 @@ sys_open(void)
       return -1;
     }
     
+    ilock(ip);
+    
     //symlink
     int depth = 0;
     char buff[128];
     int n;
 
     while(ip->type == T_SYMLINK){
-      ilock(ip);
       if(depth++ >= 10){
         iunlockput(ip);
         end_op();
@@ -321,6 +322,7 @@ sys_open(void)
       }
 
       n = readi(ip, buff, 0, sizeof(buff)-1);
+
       if(n < 1){
         iunlockput(ip);
         end_op();
@@ -330,12 +332,15 @@ sys_open(void)
       buff[n] = '\0';
       iunlockput(ip);
       ip = namei(buff);
+
       if(ip == 0){
         end_op();
         return -1;
       }
+      
+      ilock(ip);
     }
-    ilock(ip);
+    
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();
